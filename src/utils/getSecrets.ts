@@ -1,22 +1,33 @@
 import { GetSecretValueCommand, SecretsManagerClient } from "@aws-sdk/client-secrets-manager";
 import { Secrets } from "./types";
 
-async function getSecrets(): Promise<Secrets> {
-    const secretName = "vqbank-express-lambda" as const;
-    const region = "ap-south-1" as const;
+class GetSecrets {
+    public secretName: string;
+    public region: string;
+    private client: SecretsManagerClient;
 
-    const client = new SecretsManagerClient({
-        region
-    });
+    constructor(secretName: string, region: string) {
+        this.secretName = secretName;
+        this.region = region;
 
+        this.client = new SecretsManagerClient({
+            region
+        });
+    }
 
-    const response = await client.send(
-        new GetSecretValueCommand({
-            SecretId: secretName,
-        })
-    );
+    public async secrets(): Promise<Secrets> {
+        const response = await this.client.send(
+            new GetSecretValueCommand({
+                SecretId: this.secretName,
+            })
+        )
 
-    return JSON.parse(response.SecretString || "");
+        if (!response.SecretString) {
+            throw new Error("Secret not found");
+        }
+
+        return JSON.parse(response.SecretString);
+    }
 }
 
-export default getSecrets;
+export default GetSecrets;

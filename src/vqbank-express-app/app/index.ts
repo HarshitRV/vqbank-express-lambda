@@ -1,7 +1,12 @@
 import express, { Express, Request, Response, NextFunction } from 'express';
-import { ERROR_TYPES } from './global-types';
+import { ERROR_TYPES } from '../global-types';
+import { APP_ROUTES } from './types';
+import paperRouter from '../routers/paper';
+import MongoDatabase from '../db/MongoDatabase';
 
 const app: Express = express();
+
+app.use(APP_ROUTES.V1, paperRouter)
 
 app.route('/').get(async (_req, res) => {
     try {
@@ -21,8 +26,14 @@ app.all('*', (_req, _res, next) => {
     next(new Error(ERROR_TYPES[404]));
 });
 
-app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
+app.use(async (err: Error, req: Request, res: Response, _next: NextFunction) => {
     console.log(err);
+
+    /** If the database connection has been established then close it */
+    if (req['db']) {
+        const db: MongoDatabase = req['db'];
+        await db.disconnect();
+    }
 
     if (err.message === ERROR_TYPES[404]) {
         res.status(404).json({
