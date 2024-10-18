@@ -87,4 +87,5 @@ userSchema.virtual('papers', {
 const User: Model<IUser> = mongoose.model<IUser>(DocUser, userSchema);
 
 export { DocUser };
+
 export default User;
