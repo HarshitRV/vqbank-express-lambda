@@ -9,7 +9,7 @@ import { EXTENDED_REQ_PROPS } from "../../types";
 export default async function protect(req: Request, res: Response, next: NextFunction) {
     const { JWT_SECRET }: Secrets = req[EXTENDED_REQ_PROPS.SECRETS];
 
-    const token = req.headers.authorization;
+    const token = req.headers.authorization?.split(' ')[1];
 
     if (!token) {
         throw new AppError("Unauthorized", 401);
