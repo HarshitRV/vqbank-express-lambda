@@ -1,7 +1,7 @@
 import mongoose, { Model, Schema, SchemaOptions } from "mongoose";
 import { IUser, ROLES } from "./types";
-import * as argon2 from "argon2";
 import { DocPaper } from "../paper";
+import bcrypt from 'bcryptjs';
 
 const DocUser = "User" as const;
 
@@ -47,14 +47,14 @@ const userSchema: Schema<IUser> = new Schema({
  */
 userSchema.pre<IUser>('save', async function (next) {
     try {
+        const salt = bcrypt.genSaltSync();
+
         if (this.isModified('password')) {
-            const passwordHash = await argon2.hash(this.password);
-            this.password = passwordHash;
+            this.password = bcrypt.hashSync(this.password, salt);
         }
 
         if (this.otp && this.isModified('otp')) {
-            const otpHash = await argon2.hash(this.otp);
-            this.otp = otpHash;
+            this.otp = bcrypt.hashSync(this.otp, salt);
         }
 
         next();
@@ -65,17 +65,14 @@ userSchema.pre<IUser>('save', async function (next) {
 
 
 
-/**
- * Compare the hashed password with the password provided.
- */
-userSchema.methods.checkPassword = function (password: string) {
-    const passwordHash = this.password;
-    return argon2.verify(passwordHash, password);
+/**  Compare the hashed password with the password provided */
+userSchema.methods.checkPassword = function (password: string): boolean {
+    return bcrypt.compareSync(password, this.password);
 }
 
-userSchema.methods.checkOTP = function (otp: string) {
-    const otpHash = this.otp;
-    return argon2.verify(otpHash, otp);
+/** Compare the hashed otp with the otp provided */
+userSchema.methods.checkOTP = function (otp: string): boolean {
+    return bcrypt.compareSync(otp, this.otp);
 }
 
 userSchema.virtual('papers', {
@@ -84,7 +81,7 @@ userSchema.virtual('papers', {
     foreignField: 'user',
 });
 
-const User: Model<IUser> = mongoose.model<IUser>(DocUser, userSchema);
+const User = mongoose.model(DocUser, userSchema);
 
 export { DocUser };
 

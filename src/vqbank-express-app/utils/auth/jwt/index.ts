@@ -1,26 +1,79 @@
-import jwt, { VerifyErrors } from "jsonwebtoken";
+import jwt from "jsonwebtoken";
 import { jwtExpiry, TokenPayload } from "./types";
+import { STATUS_CODES, StatusCodes } from "../../server/types";
 
-/** Generates a JSON Web Token (JWT) for a given user ID */
-export function createJwt(userId: string, jwtSecret: string, jwtExpiry: jwtExpiry = "1d"): string {
-    return jwt.sign({
-        userId
-    }, jwtSecret, {
-        expiresIn: jwtExpiry
-    })
+
+class JWT {
+    constructor(
+        private readonly jwtSecret: string,
+        private readonly jwtExpiry: jwtExpiry = "7d"
+    ) { }
+
+    public create(userId: string): string {
+        return jwt.sign({ userId }, this.jwtSecret, {
+            expiresIn: this.jwtExpiry
+        });
+    }
+
+    public async verify(token: string): Promise<TokenPayload> {
+        try {
+            const decoded = await this.decodeToken(token);
+            this.validatePayload(decoded);
+            return decoded as TokenPayload;
+        } catch (error) {
+            throw this.handleError(error);
+        }
+    }
+
+    private decodeToken(token: string): Promise<unknown> {
+        return new Promise((resolve, reject) => {
+            jwt.verify(token, this.jwtSecret, (err, decoded) => {
+                if (err) reject(err);
+                resolve(decoded);
+            });
+        });
+    }
+
+    private validatePayload(decoded: unknown): void {
+        if (!decoded || typeof decoded === 'string') {
+            throw new TokenError('Invalid token payload', STATUS_CODES.BAD_REQUEST);
+        }
+
+        const payload = decoded as TokenPayload;
+
+        if (!payload.userId) {
+            throw new TokenError('Token payload missing user id', STATUS_CODES.BAD_REQUEST);
+        }
+    }
+
+    private handleError(error: unknown): TokenError {
+        if (error instanceof jwt.JsonWebTokenError) {
+            return new TokenError(error.message, STATUS_CODES.UNAUTHORIZED);
+        }
+
+        if (error instanceof TokenError) {
+            return error;
+        }
+
+        return new TokenError(
+            'Token verification failed',
+            STATUS_CODES.INTERNAL_SERVER_ERROR
+        );
+    }
 }
 
-/**
- * Verifies a JSON Web Token (JWT) using the given secret and returns a promise
- * that resolves with the token payload if the token is valid.
+class TokenError extends Error {
+    constructor(
+        message: string,
+        public statusCode: StatusCodes,
+        public isOperational: boolean = true
+    ) {
+        super(message);
+        this.name = 'TokenError';
+        Error.captureStackTrace(this, this.constructor);
+    }
+}
 
- * @throws {VerifyErrors} VerifyErrors if the token is invalid or verification fails.
- */
-export function verifyJwt(token: string, jwtSecret: string): Promise<TokenPayload> {
-    return new Promise((resolve, reject) => {
-        jwt.verify(token, jwtSecret, (err, payload) => {
-            if (err) return reject(err);
-            resolve(payload as TokenPayload);
-        });
-    });
-};
+export default JWT
+
+export { TokenError }

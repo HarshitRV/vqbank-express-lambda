@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from "express";
-import { AsyncHandler, RequestHandler, StatusCode } from "./types";
+import { AsyncHandler, RequestHandler, StatusCodes } from "./types";
 
 /**
  * Wraps an async handler function to properly handle errors
@@ -19,20 +19,21 @@ export function wrapAsyncHandler(...handlers: AsyncHandler[]): RequestHandler[] 
 }
 
 export class AppError extends Error {
-    private statusCode: StatusCode;
+    public statusCode: StatusCodes;
     public message: string;
 
-    constructor(message: string, statusCode: StatusCode,) {
+    constructor(message: string, statusCode: StatusCodes,) {
         super(message);
         this.statusCode = statusCode;
         this.message = message;
+        Error.captureStackTrace(this, this.constructor);
     };
 
     public get errorMessage(): string {
         return this.message;
     }
 
-    public get errorCode(): StatusCode {
+    public get errorCode(): StatusCodes {
         return this.statusCode;
     }
 }

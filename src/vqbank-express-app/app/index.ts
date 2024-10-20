@@ -2,11 +2,20 @@ import express, { Express, Request, Response, NextFunction } from 'express';
 import { ERROR_TYPES } from '../global-types';
 import { APP_ROUTES } from './types';
 import paperRouter from '../routers/paper';
+import authRouter from '../routers/auth';
 import MongoDatabase from '../db/MongoDatabase';
+import { AppError } from '../utils/server';
 
 const app: Express = express();
 
-app.use(APP_ROUTES.V1, paperRouter)
+// For parsing application/json
+app.use(express.json());
+
+// For parsing application/x-www-form-urlencoded
+app.use(express.urlencoded({ extended: true }));
+
+app.use(APP_ROUTES.V1, paperRouter);
+app.use(APP_ROUTES.V1, authRouter);
 
 app.route('/').get(async (_req, res) => {
     try {
@@ -41,6 +50,12 @@ app.use(async (err: Error, req: Request, res: Response, _next: NextFunction) => 
         })
 
         return;
+    }
+
+    if(err instanceof AppError) {
+        res.status(err.statusCode).json({
+            message: err.message
+        })
     }
 
     res.status(500).json({

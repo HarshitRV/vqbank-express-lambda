@@ -7,7 +7,8 @@ export const STATUS_CODES = {
     BAD_REQUEST: 400,
     NOT_FOUND: 404,
     INTERNAL_SERVER_ERROR: 500,
-    UNAUTHORIZED: 401
+    UNAUTHORIZED: 401,
+    CREATED: 201
 } as const;
 
-export type StatusCode = typeof STATUS_CODES[keyof typeof STATUS_CODES];
+export type StatusCodes = typeof STATUS_CODES[keyof typeof STATUS_CODES];
