@@ -4,9 +4,10 @@ import { AppError } from "../../../utils/server";
 import { Secrets } from "../../../../utils/types";
 import User from "../../../models/user";
 import JWT from "../../../utils/auth/jwt";
+import { EXTENDED_REQ_PROPS } from "../../types";
 
 export default async function protect(req: Request, res: Response, next: NextFunction) {
-    const { JWT_SECRET }: Secrets = req['secrets'];
+    const { JWT_SECRET }: Secrets = req[EXTENDED_REQ_PROPS.SECRETS];
 
     const token = req.headers.authorization;
 
@@ -24,7 +25,7 @@ export default async function protect(req: Request, res: Response, next: NextFun
         throw new AppError("Unauthorized", 401);
     }
 
-    req['user'] = user;
+    req[EXTENDED_REQ_PROPS.USER] = user;
 
     next();
 }

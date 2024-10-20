@@ -1,46 +1,82 @@
 import { Request, Response } from "express";
 import { Secrets } from "../../../utils/types";
-import { UserRegisterRequestBody, UserRegisterResponseBody, userRegisterSchema } from "./types";
+import { AUTH_CONTROLLER_ERRORS, UserAuthRequestBody, UserAuthSuccessResponse, userAuthSchema } from "./types";
 import { AppError } from "../../utils/server";
 import User from "../../models/user";
+import { IUser } from "../../models/user/types";
 import JWT from "../../utils/auth/jwt";
 import { STATUS_CODES } from "../../utils/server/types";
-import MongoDatabase from "../../db/MongoDatabase";
-import Paper from "../../models/paper";
+import { EXTENDED_REQ_PROPS } from "../../middlewares/types";
+import mongoose from "mongoose";
 
-export async function registerUser(req: Request, res: Response) {
-    const { JWT_SECRET }: Secrets = req['secrets'];
-    const db: MongoDatabase = req['db'];
+export default class AuthController {
+    private validateRequest = (req: Request): UserAuthRequestBody => {
+        const { error, value } = userAuthSchema.validate(req.body);
 
-    const { error, value } = userRegisterSchema.validate(req.body);
+        if (error) {
+            throw new AppError(error.message, 400);
+        }
 
-    if (error) {
-        throw new AppError(error.message, 400);
+        return value as UserAuthRequestBody;
     }
 
-    const { email, password } = value as UserRegisterRequestBody;
-
-    const existingUser = await User.findOne({ email });
-
-    if (existingUser) {
-        throw new AppError("user already exists", 400);
+    private getJWTSecret = (req: Request): string => {
+        const { JWT_SECRET }: Secrets = req[EXTENDED_REQ_PROPS.SECRETS];
+        return JWT_SECRET;
     }
 
-    const newUser = new User({
-        email,
-        password
-    });
+    private createAuthToken = (jwt: JWT, userId: string): string => {
+        return jwt.create(userId);
+    }
 
-    const jwt = new JWT(JWT_SECRET);
-    const authToken = jwt.create(newUser.id);
+    private createSuccessResponse = (authToken: string): UserAuthSuccessResponse => {
+        return { authToken };
+    }
 
-    await newUser.save();
+    private findUserByEmail = async (email: string): Promise<(mongoose.Document<unknown, {}, IUser> & IUser & Required<{
+        _id: unknown;
+    }> & {
+        __v?: number;
+    }) | null> => {
+        return await User.findOne({ email });
+    }
 
-    const response: UserRegisterResponseBody = {
-        authToken
-    };
+    public registerUser = async (req: Request, res: Response) => {
+        const { email, password } = this.validateRequest(req);
 
-    db.disconnect();
+        const existingUser = await this.findUserByEmail(email);
 
-    res.status(STATUS_CODES.CREATED).json(response);
+        if (existingUser) {
+            throw new AppError(AUTH_CONTROLLER_ERRORS.EXISTING_USER, 400);
+        }
+
+        const newUser = new User({ email, password });
+        await newUser.save();
+
+        const jwt = new JWT(this.getJWTSecret(req));
+        const authToken = this.createAuthToken(jwt, newUser.id);
+
+        res.status(STATUS_CODES.CREATED).json(this.createSuccessResponse(authToken));
+    }
+
+    public loginUser = async (req: Request, res: Response) => {
+        const { email, password } = this.validateRequest(req);
+
+        const existingUser = await this.findUserByEmail(email);
+
+        if (!existingUser) {
+            throw new AppError(AUTH_CONTROLLER_ERRORS.NON_EXISTING_USER, 400);
+        }
+
+        const isCorrectPassword = existingUser.checkPassword(password);
+
+        if (!isCorrectPassword) {
+            throw new AppError(AUTH_CONTROLLER_ERRORS.INCORRECT_CREDENTIALS, 400);
+        }
+
+        const jwt = new JWT(this.getJWTSecret(req));
+        const authToken = this.createAuthToken(jwt, existingUser.id);
+
+        res.status(STATUS_CODES.CREATED).json(this.createSuccessResponse(authToken));
+    }
 }

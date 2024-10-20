@@ -1,14 +1,14 @@
+import MongoDatabase from "../../db/MongoDatabase";
 import Paper from "../../models/paper";
 import { Request, Response } from "express";
-import MongoDatabase from "../../db/MongoDatabase";
+import { AppError } from "../../utils/server";
 
-export async function getAllPapers(req: Request, res: Response) {
-    const papers = await Paper.find({}).select("-__v -buffer")
+export default class PaperController {
+    public getAllPapers = async (_req: Request, res: Response) => {
+        const papers = await Paper.find({}).select("-__v -buffer")
 
-    const db: MongoDatabase = req['db'];
-    await db.disconnect();
-
-    res.status(200).json({
-        papers
-    })
+        res.status(200).json({
+            papers
+        })
+    }
 }

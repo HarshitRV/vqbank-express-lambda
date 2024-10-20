@@ -38,10 +38,12 @@ app.all('*', (_req, _res, next) => {
 app.use(async (err: Error, req: Request, res: Response, _next: NextFunction) => {
     console.log(err);
 
-    /** If the database connection has been established then close it */
-    if (req['db']) {
-        const db: MongoDatabase = req['db'];
-        await db.disconnect();
+    if (err instanceof AppError) {
+        res.status(err.statusCode).json({
+            message: err.message
+        })
+
+        return;
     }
 
     if (err.message === ERROR_TYPES[404]) {
@@ -50,12 +52,6 @@ app.use(async (err: Error, req: Request, res: Response, _next: NextFunction) => 
         })
 
         return;
-    }
-
-    if(err instanceof AppError) {
-        res.status(err.statusCode).json({
-            message: err.message
-        })
     }
 
     res.status(500).json({
