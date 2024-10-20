@@ -14,7 +14,7 @@ export interface IUser extends mongoose.Document {
     role: Roles;
     otp?: string;
     purchasedPapers: mongoose.Types.ObjectId[];
-    checkPassword(password: string): Promise<boolean>;
-    checkOTP(otp: string): Promise<boolean>;
+    checkPassword(password: string): boolean;
+    checkOTP(otp: string): boolean;
     isModified: (path: string) => boolean;
 }

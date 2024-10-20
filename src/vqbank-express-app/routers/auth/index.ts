@@ -1,10 +1,12 @@
 import { Router } from "express";
-import { registerUser } from "../../controllers/auth";
 import { AuthRoutes } from "./types";
 import { attachSecretsAndDatabase } from "../../middlewares/utils";
+import AuthController from "../../controllers/auth";
 
 const authRouter: Router = Router();
+const authController = new AuthController();
 
-authRouter.route<AuthRoutes>('/auth/register').post(...attachSecretsAndDatabase(registerUser));
+authRouter.route<AuthRoutes>('/auth/register').post(...attachSecretsAndDatabase(authController.registerUser));
+authRouter.route<AuthRoutes>('/auth/login').post(...attachSecretsAndDatabase(authController.loginUser));
 
 export default authRouter;
